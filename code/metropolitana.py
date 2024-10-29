@@ -3,6 +3,8 @@ from openpyxl import load_workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.drawing.image import Image
 from openpyxl.styles import Border, Side, Font, Alignment, PatternFill
+import tkinter as tk
+from tkinter import filedialog, messagebox
 
 def ajustar_coluna_local(df):
     if 'Local' in df.columns:
@@ -60,7 +62,7 @@ def criar_tabela(df):
     ws.add_table(tabela)
 
 def add_img():
-    img = Image('cedae_img.jpg')
+    img = Image(r'C:\Users\joaof\Desktop\projeto\img\cedae_img.jpg')
     ws.add_image(img, 'A1')
 
 def tirar_bordas_e_grades():    
@@ -107,38 +109,98 @@ def alinhar_e_centralizar():
     for linha in ws.iter_rows(min_row=1, max_row=max_linhas, min_col=1, max_col=max_col):
         for cell in linha:
             cell.alignment = centralizado
+# Função de seleção de arquivo
 
-#------------------------------CARREGAMENTO DAS PLANILHAS------------------------------------------
-caminho_arquivo = r'sn_customerservice_task_(20).xlsx'
-caminho_arquivo_procx = r'Gerencias_panda.xlsx'
+def selecionar_arquivo():
+    global arquivo_path
+    arquivo_path = filedialog.askopenfilename(
+        title="Selecione um arquivo .xlsx",
+        filetypes=[("Arquivo Excel", "*.xlsx")]
+    )
+    if arquivo_path:
+        messagebox.showinfo("Arquivo Selecionado", f"Arquivo selecionado:\n{arquivo_path}")
+        janela.destroy()  # Fecha a janela e inicia o processamento
+        processar_arquivo()
+    else:
+        messagebox.showwarning("Nenhum arquivo", "Nenhum arquivo foi selecionado.")
 
-df = pd.read_excel(caminho_arquivo, engine='openpyxl')
-df_gerencias = pd.read_excel(caminho_arquivo_procx, engine='openpyxl')
+def processar_arquivo():
+    global df_metropolitana, wb, ws
+    caminho_arquivo = arquivo_path
+    caminho_arquivo_procx = r'C:\Users\joaof\Desktop\projeto\base_sheets\Gerencias_panda.xlsx'
 
-#------------------------------MANIPULAÇÃO DOS DADOS------------------------------------------
-ajustar_coluna_local(df)
-renomear_col(df)
-abreviar_data(df)
-df = add_gerencias(df, df_gerencias)
-df_metropolitana = filtrar_metropolitana(df)
-df_metropolitana = ajustar_posicao_col(df_metropolitana)
-alterar_erros(df_metropolitana)
-df_metropolitana = add_nova_linha(df_metropolitana)
+    # Carrega os dados
+    df = pd.read_excel(caminho_arquivo, engine='openpyxl')
+    df_gerencias = pd.read_excel(caminho_arquivo_procx, engine='openpyxl')
 
-#------------------------------FORMATAÇÃO DA PLANILHA-----------------------------------------
-df_metropolitana.to_excel('Solicitações Comerciais Área Metropolitana.xlsx', index=False)
-wb = load_workbook('Solicitações Comerciais Área Metropolitana.xlsx')
-ws = wb.active
-criar_tabela(df_metropolitana)
-add_img()
-tirar_bordas_e_grades()
-aumentar_dimensao_col_linha()
-alterar_format_cel(ws['A2'], ws['B2'], ws['C2'], ws['D2'], ws['E2'], ws['F2'])
-juntar_cells('E2', 'F2')
-ws.merge_cells('A2:C2')
-ws.merge_cells('E2:F2')
-alinhar_e_centralizar()
-ws.sheet_view.showGridLines = False
+    # Manipulação dos dados
+    ajustar_coluna_local(df)
+    renomear_col(df)
+    abreviar_data(df)
+    df = add_gerencias(df, df_gerencias)
+    df_metropolitana = filtrar_metropolitana(df)
+    df_metropolitana = ajustar_posicao_col(df_metropolitana)
+    alterar_erros(df_metropolitana)
+    df_metropolitana = add_nova_linha(df_metropolitana)
 
-#------------------------------SALVAMENTO DA PLANILHA-----------------------------------------
-wb.save('Solicitações Comerciais Área Metropolitana.xlsx')
+    # Salva temporariamente para poder carregar no openpyxl
+    temp_sheet = r'C:\Users\joaof\Desktop\projeto\processed-sheets\temp_processed.xlsx'
+    df_metropolitana.to_excel(temp_sheet, index=False)
+
+    # Carrega a planilha temporária com openpyxl para formatação
+    wb = load_workbook(temp_sheet)
+    ws = wb.active
+
+    # Formatação da planilha
+    criar_tabela(df_metropolitana)
+    add_img()
+    tirar_bordas_e_grades()
+    aumentar_dimensao_col_linha()
+    alterar_format_cel(ws['A2'], ws['B2'], ws['C2'], ws['D2'], ws['E2'], ws['F2'])
+    juntar_cells('E2', 'F2')
+    ws.merge_cells('A2:C2')
+    ws.merge_cells('E2:F2')
+    alinhar_e_centralizar()
+    ws.sheet_view.showGridLines = False
+
+    # Abre a tela para escolher onde salvar o arquivo
+    salvar_arquivo_processado()
+
+def salvar_arquivo_processado():
+    # Caixa de diálogo para escolher onde salvar e renomear o arquivo final
+    local_salvo = filedialog.asksaveasfilename(
+        title="Salvar arquivo como",
+        defaultextension=".xlsx",
+        filetypes=[("Arquivo Excel", "*.xlsx")]
+    )
+    if local_salvo:
+        wb.save(local_salvo)  # Salva o workbook no local e nome escolhidos pelo usuário
+        messagebox.showinfo("Arquivo Salvo", f"O arquivo foi salvo em:\n{local_salvo}")
+    else:
+        messagebox.showwarning("Operação Cancelada", "O arquivo não foi salvo.")
+
+janela = tk.Tk()
+janela.title("Gerador de relatórios")
+janela.geometry("500x200")
+
+titulo = tk.Label(
+    janela,
+    text="Solicitações Comerciais Área Metropolitana",
+    font=("Arial", 16, "bold"),
+    fg="#333333"
+)
+titulo.pack(pady=(20, 10))
+
+botao = tk.Button(
+    janela, 
+    text="Selecionar Arquivo .xlsx", 
+    command=selecionar_arquivo,
+    font=("Arial", 12, "bold"),
+    bg="#4CAF50",
+    fg="white",
+    padx=20,
+    pady=10
+)
+botao.pack(pady=50)
+
+janela.mainloop()
